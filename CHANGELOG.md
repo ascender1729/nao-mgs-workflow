@@ -1,5 +1,7 @@
-# v3.0.1.6
+# v3.0.1.7-dev
+- Clarified testing documentation in `docs/developer.md`.
 
+# v3.0.1.6
 - Modified filterTsvColumnByValue to correctly handle quotation characters in FASTQ quality strings.
 - Modified Github Actions configuration to use the official Github Action to install nf-test.
 
