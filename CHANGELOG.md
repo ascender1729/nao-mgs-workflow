@@ -1,5 +1,11 @@
 # v3.0.1.8-dev
-- Moved ADD_CONDITIONAL_TSV_COLUMN to Python and implemented pytest tests.
+- Pruning and streamlining testing for easier releases:
+    - Separated downloading part of JOIN_RIBO_REF into a separate WGET process, and tested both parts separately
+    - Moved ADD_CONDITIONAL_TSV_COLUMN to Python and implemented pytest tests.
+    - Moved COUNT_READS_PER_CLADE tests to Pytest.
+    - Deleted extraneous tests for BOWTIE2 and CONCATENATE_FILES.
+    - Created toy data files for several tests to reduce setup burden.
+    - Added plaintext handling to BLAST process to help with testing
 
 # v3.0.1.7
 - Clarified testing documentation in `docs/developer.md`.
