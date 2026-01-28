@@ -1,3 +1,50 @@
+# v3.0.1.8
+
+## Streamlining release process
+
+This version involved numerous changes intended to make new releases easier, faster and more robust:
+
+- Pruning and accelerating testing:
+    - Separated downloading part of `JOIN_RIBO_REF` into a separate `WGET` process, and tested both parts separately
+    - Moved `ADD_CONDITIONAL_TSV_COLUMN` to Python and implemented `pytest` tests.
+    - Moved `COUNT_READS_PER_CLADE` tests to `pytest`.
+    - Deleted extraneous tests for `BOWTIE2` and `CONCATENATE_FILES`.
+    - Created toy data files for several tests to reduce setup burden.
+    - Created custom tiny reference datasets and switched tests to use them for increased speed.
+    - Implemented parallel execution of `nf-test` via `bin/run_nf_test_parallel.py` and `bin/run-nf-test.sh`.
+    - Added plaintext file handling to various processes to help with testing (by removing the need for `gzip`/`zcat` steps)
+    - Implemented code for generating and uploading containers to ECR Public, and replaced Wave container paths with ECR paths. Among other benefits, this allows us to run the entire test suite without running into pull-rate limit errors.
+- Automating workflow testing with Github Actions:
+    - Whole `nf-test` suite now runs on PRs to main (`.github/workflows/nf-test-*`)
+    - Chained `INDEX -> RUN -> DOWNSTREAM` integration test on toy data runs before PRs to `main` (`.github/workflows/test-chained.yml`)
+    - Chained `RUN -> DOWNSTREAM` integration tests on real benchmark data (Illumina and ONT) before PRs to `main` (`.github/workflows/benchmark*.yml`)
+    - In workflow tests (`.github/workflows/nf-test-workflows-*`) added verification that published outputs match expected outputs specified in `pyproject.toml`.
+- Automated verification of repository metadata:
+    - Consolidated version & output tracking into `pyproject.toml` & added a test for version consistency between `pyproject.toml` and `CHANGELOG.md`. (`.github/workflows/check-version.yml`)
+    - Enforced a minimum Nextflow version via `manifest` statement in `configs/profiles.config` & configured Github Actions to automatically source the same Nextflow version.
+    - Added non-blocking check that installed Nextflow version is up to date. (`.github/workflows/check-nextflow-version.yml`)
+    - Enforced `CHANGELOG.md` updates for PRs to `dev`. (`.github/workflows/check-changelog.yml`)
+    - Added pre-merge validation to check changelog sections and prevent duplicate releases. (`.github/workflows/check-release.yml`)
+- Automated release process upon merge to `main`:
+    - Automated release creation and tagging on merge to `main`. (`.github/workflows/create-release.yml`)
+        - Created `bin/extract_changelog.py` to extract changelog content for releases, plus associated `pytest` tests.
+    - Automated branch resets after release. (`.github/workflows/reset-branches.yml`)
+        - Automatically resets `dev` and `ci-test` branches to `main` after each release.
+        - Automatically resets `stable` to `main` for point releases (when only the 4th version number changes)
+- Documentation:
+    - Moved release documentation from private internal docs to `docs/developer.md` and updated formatting to match Github requirements.
+    - Added thorough CI documentation in `docs/ci.md`.
+
+## Other changes
+
+- Bug fixes:
+    - Fixed bug where `DOWNSTREAM` produced no output for groups without vertebrate-viral hits; now produces empty files with appropriate group names.
+    - Fixed quote-handling bug causing `DOWNSTREAM` to fail if ONT FASTQ quality scores contain quote characters.
+- Added similarity-based duplicate marking tool in `post-processing/`:
+    - New Rust tool (`rust_dedup/`) for similarity-based duplicate detection to supplement alignment-based deduplication
+    - Uses nao-dedup library (added as git submodule in `post-processing/deps/nao_dedup/`)
+- Added issue auto-labeling for Linear integration. (`.github/workflows/label-issues.yml`)
+
 # v3.0.1.7
 - Clarified testing documentation in `docs/developer.md`.
 - Added bin/clean-nf-test.sh for test cleanup.

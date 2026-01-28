@@ -1,3 +1,29 @@
+import static groovy.io.FileType.FILES
+
+// Get expected output files from pyproject.toml
+def getExpectedOutputs = { pyprojectPath, workflowKey, groupName ->
+    def pyprojectText = pyprojectPath.text
+    def key = "expected-outputs-${workflowKey}"
+    def sectionMatch = (pyprojectText =~ /${key} = \[([\s\S]*?)\]/)
+    def expectedFiles = (sectionMatch[0][1] =~ /"([^"]+)"/).collect { it[1] }
+    if (groupName != null) {
+        expectedFiles = expectedFiles.collect { it.replace("{GROUP}", groupName) }
+    }
+    return expectedFiles.sort()
+}
+
+// Get observed output files, excluding intermediates and trace files
+def getObservedOutputs = { outputDir ->
+    def excludePatterns = ["intermediates", "intermediates_downstream", "trace"]
+    def observedFiles = []
+    outputDir.eachFileRecurse(FILES) { file ->
+        def relPath = outputDir.relativize(file).toString()
+        def excluded = excludePatterns.any { pattern -> relPath.contains(pattern) }
+        if (!excluded) observedFiles << relPath
+    }
+    return observedFiles.sort()
+}
+
 nextflow_pipeline {
 
     name "Test workflow DOWNSTREAM"
@@ -5,34 +31,22 @@ nextflow_pipeline {
     config "tests/configs/downstream.config"
     tag "workflow"
 
-    test("Short read DOWNSTREAM workflow should run without errors") {
-        tag "downstream"
-        tag "main_downstream"
-        then {
-            assert workflow.success
-        }
-    }
-
-    test("ONT DOWNSTREAM workflow should run without errors") {
-        config "tests/configs/downstream_ont.config"
-        tag "downstream_ont"
-        tag "main_downstream_ont"
-        then {
-            assert workflow.success
-        }
-    }
-
     test("DOWNSTREAM workflow output should match snapshot") {
         tag "downstream_output"
         tag "main_downstream_output"
         tag "snapshot"
         then {
             assert workflow.success
+            // Verify expected outputs match pyproject.toml
+            def expected = getExpectedOutputs(path("${projectDir}/pyproject.toml"), "downstream", "tt1")
+            def observed = getObservedOutputs(path("${launchDir}/output"))
+            assert observed == expected : "Expected ${expected} but got ${observed}"
+            // Verify file contents match snapshot
             assert snapshot(
-                path("${launchDir}/output/results_downstream/gs1_duplicate_reads.tsv.gz"),
-                path("${launchDir}/output/results_downstream/gs1_duplicate_stats.tsv.gz"),
-                path("${launchDir}/output/results_downstream/gs1_clade_counts.tsv.gz"),
-                path("${launchDir}/output/results_downstream/gs1_validation_hits.tsv.gz"),
+                path("${launchDir}/output/results_downstream/tt1_duplicate_reads.tsv.gz"),
+                path("${launchDir}/output/results_downstream/tt1_duplicate_stats.tsv.gz"),
+                path("${launchDir}/output/results_downstream/tt1_clade_counts.tsv.gz"),
+                path("${launchDir}/output/results_downstream/tt1_validation_hits.tsv.gz"),
             ).match("downstream_output")
         }
     }
@@ -44,9 +58,31 @@ nextflow_pipeline {
         tag "snapshot_ont"
         then {
             assert workflow.success
+            // Verify expected outputs match pyproject.toml
+            def expected = getExpectedOutputs(path("${projectDir}/pyproject.toml"), "downstream-ont", "tt1")
+            def observed = getObservedOutputs(path("${launchDir}/output"))
+            assert observed == expected : "Expected ${expected} but got ${observed}"
+            // Verify file contents match snapshot
             assert snapshot(
-                path("${launchDir}/output/results_downstream/ont_1_validation_hits.tsv.gz"),
+                path("${launchDir}/output/results_downstream/tt1_validation_hits.tsv.gz"),
             ).match("downstream_ont_output")
+        }
+    }
+
+    test("Should create empty output files for groups with no hits") {
+        tag "downstream_empty_groups"
+        tag "empty_input"
+        when {
+            params {
+                input_file = "${projectDir}/test-data/downstream/input_file_empty_only.csv"
+            }
+        }
+        then {
+            assert workflow.success
+            // Verify expected outputs match pyproject.toml
+            def expected = getExpectedOutputs(path("${projectDir}/pyproject.toml"), "downstream", "empty_group")
+            def observed = getObservedOutputs(path("${launchDir}/output"))
+            assert observed == expected : "Expected ${expected} but got ${observed}"
         }
     }
 }

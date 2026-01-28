@@ -13,10 +13,8 @@ nextflow_workflow {
             params {}
             workflow {
                 """
-                input[0] = file("${projectDir}/test-data/toy-data/versions/version1001.txt")
-                input[1] = file("${projectDir}/test-data/toy-data/versions/version1001.txt")
-                input[2] = file("${projectDir}/test-data/toy-data/versions/version1001.txt")
-                input[3] = file("${projectDir}/test-data/toy-data/versions/version1001.txt")
+                input[0] = file("${projectDir}/test-data/checkVersionCompatibility/pyproject-1000-1000.toml")
+                input[1] = file("${projectDir}/test-data/checkVersionCompatibility/pyproject-1000-1000.toml")
                 """
             }
         }
@@ -33,10 +31,8 @@ nextflow_workflow {
             params {}
             workflow {
                 """
-                input[0] = file("${projectDir}/test-data/toy-data/versions/version1001.txt")
-                input[1] = file("${projectDir}/test-data/toy-data/versions/version1001.txt")
-                input[2] = file("${projectDir}/test-data/toy-data/versions/version1000.txt")
-                input[3] = file("${projectDir}/test-data/toy-data/versions/version1000.txt")
+                input[0] = file("${projectDir}/test-data/checkVersionCompatibility/pyproject-1000-1000.toml")
+                input[1] = file("${projectDir}/test-data/checkVersionCompatibility/pyproject-1001-1000.toml")
                 """
             }
         }
@@ -53,19 +49,17 @@ nextflow_workflow {
             params {}
             workflow {
                 """
-                input[0] = file("${projectDir}/test-data/toy-data/versions/version1001.txt")
-                input[1] = file("${projectDir}/test-data/toy-data/versions/version1000.txt")
-                input[2] = file("${projectDir}/test-data/toy-data/versions/version1001.txt")
-                input[3] = file("${projectDir}/test-data/toy-data/versions/version1000.txt")
+                input[0] = file("${projectDir}/test-data/checkVersionCompatibility/pyproject-1001-1001.toml")
+                input[1] = file("${projectDir}/test-data/checkVersionCompatibility/pyproject-1000-1000.toml")
                 """
             }
         }
         then {
-            // Should run without errors
             assert workflow.failed
-            assert workflow.stdout.any{ it.contains("Index version is older than pipeline minimum") }
-            assert !workflow.stdout.any{ it.contains("Pipeline version is older than index minimum") }
-            assert !workflow.stdout.any{ it.contains("Invalid version format") }
+            // Check for actual error (with version numbers), not source code (with ${variable})
+            assert workflow.stdout.any{ it.contains("Index version is older than pipeline minimum") && !it.contains('${') }
+            assert !workflow.stdout.any{ it.contains("Pipeline version is older than index minimum") && !it.contains('${') }
+            assert !workflow.stdout.any{ it.contains("Invalid version format") && !it.contains('${') }
         }
     }
 
@@ -76,19 +70,17 @@ nextflow_workflow {
             params {}
             workflow {
                 """
-                input[0] = file("${projectDir}/test-data/toy-data/versions/version1000.txt")
-                input[1] = file("${projectDir}/test-data/toy-data/versions/version1001.txt")
-                input[2] = file("${projectDir}/test-data/toy-data/versions/version1000.txt")
-                input[3] = file("${projectDir}/test-data/toy-data/versions/version1001.txt")
+                input[0] = file("${projectDir}/test-data/checkVersionCompatibility/pyproject-1000-1000.toml")
+                input[1] = file("${projectDir}/test-data/checkVersionCompatibility/pyproject-1001-1001.toml")
                 """
             }
         }
         then {
-            // Should run without errors
             assert workflow.failed
-            assert !workflow.stdout.any{ it.contains("Index version is older than pipeline minimum") }
-            assert workflow.stdout.any{ it.contains("Pipeline version is older than index minimum") }
-            assert !workflow.stdout.any{ it.contains("Invalid version format") }
+            // Check for actual error (with version numbers), not source code (with ${variable})
+            assert !workflow.stdout.any{ it.contains("Index version is older than pipeline minimum") && !it.contains('${') }
+            assert workflow.stdout.any{ it.contains("Pipeline version is older than index minimum") && !it.contains('${') }
+            assert !workflow.stdout.any{ it.contains("Invalid version format") && !it.contains('${') }
         }
     }
 
@@ -99,18 +91,16 @@ nextflow_workflow {
             params {}
             workflow {
                 """
-                input[0] = file("${projectDir}/test-data/toy-data/versions/version1000.txt")
-                input[1] = file("${projectDir}/test-data/toy-data/versions/version1000.txt")
-                input[2] = file("${projectDir}/test-data/toy-data/versions/version1000.txt")
-                input[3] = file("${projectDir}/test-data/toy-data/versions/version-invalid.txt")
+                input[0] = file("${projectDir}/test-data/checkVersionCompatibility/pyproject-1000-1000.toml")
+                input[1] = file("${projectDir}/test-data/checkVersionCompatibility/pyproject-invalid.toml")
                 """
             }
         }
         then {
-            // Should run without errors
             assert workflow.failed
-            assert !workflow.stdout.any{ it.contains("Index version is older than pipeline minimum") }
-            assert !workflow.stdout.any{ it.contains("Pipeline version is older than index minimum") }
+            // Check for actual error, not source code
+            assert !workflow.stdout.any{ it.contains("Index version is older than pipeline minimum") && !it.contains('${') }
+            assert !workflow.stdout.any{ it.contains("Pipeline version is older than index minimum") && !it.contains('${') }
             assert workflow.stdout.any{ it.contains("Invalid version format") }
         }
     }

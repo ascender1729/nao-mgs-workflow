@@ -3,6 +3,7 @@ This section is solely for developers of the pipeline. We thank you greatly for 
 - Coding style
 - Containers
 - Testing
+- Continuous integration (CI)
 - GitHub issues
 - Pull requests (PRs)
 - New releases
@@ -102,6 +103,10 @@ ruff check .
 mypy .
 ```
 
+## Post Processing
+
+The `post-processing/` directory contains standalone Python scripts for additional analyses that can be run on workflow outputs. These scripts are not yet integrated into the main pipeline but provide useful functionality for tasks like similarity-based duplicate marking. See [post-processing/README.md](../post-processing/README.md) for details on available scripts and usage.
+
 ## Testing
 
 We currently use [`nf-test`](https://www.nf-test.com/) for unit, integration, and end-to-end tests for many modules and all workflows. However, `nf-test` is very slow, so we're transitioning away from using it in cases where other, faster testing libraries are available. Wherever possible, a module should have a single `nf-test` test that confirms it runs end-to-end without crashing, while detailed functionality should be tested elsewhere. For Python processes, we recommend writing unit tests in [`pytest`](https://docs.pytest.org/en/stable/index.html).
@@ -148,13 +153,13 @@ In cases where a module is a thin wrapper around a script in another language, c
 
 #### Test datasets 
 
+##### Current test data
+
 - Small (uncompressed) test data files are in `test-data/`; larger test datasets are in S3:
     - Currently there is no set organization of the `test-data/` directory. It will be organized in the future; see issue [#349](https://github.com/naobservatory/mgs-workflow/issues/349).
     - Small "toy" data files (uncompressed, generally ~1KB or less) may be added freely to the repo in `test-data/toy-data`.
-- Larger public test datasets are stored in `s3://nao-testing` (publicly available). 
-    - The "gold standard test dataset" (`s3://nao-testing/gold-standard-test/`) is the default test dataset that we use for testing the `RUN` and `DOWNSTREAM` workflows on short-read data. It is a small dataset that contains 165 reads from the [Yang 2020](https://www.sciencedirect.com/science/article/abs/pii/S0048969720358514?via%3Dihub) study.
-    - The "ONT wastewater test dataset" (`s3://nao-testing/ont-ww-test/`) is the default, small test dataset that we use for testing the `RUN` workflow on ONT (long-read) data.
-- Results of workflow runs on the test datasets from S3 are in the repo in `test-data/<dataset>-results-<workflow>`. 
+- Public test datasets are stored in `s3://nao-testing/tiny-test/`. (Older test files, no longer in active use, can be found in `s3://nao-testing/gold-standard-test/` and `s3://nao-testing/ont-ww-test/`.)
+- Results of workflow runs on the test datasets from S3 are in the repo in `test-data/results/`
 
 To make a new test dataset on S3, copy the test dataset to `s3://nao-testing/<name-of-test-dataset>`. A pipeline maintainer (e.g. willbradshaw or katherine-stansifer) can give you permission to add to the bucket.
 
@@ -165,26 +170,40 @@ aws s3 cp /path/to/my_dataset s3://nao-testing/my_dataset/ --acl public-read
 > [!NOTE]
 > Any time you update a test dataset, you must make it public again.
 
+##### Tiny test data
+
+In order to cut down on the time it takes to run our test suite, we have switched much of it from larger test data stored in S3 to small test datafiles stored locally. The following instructions detail how to generate this new test data:
+
+1. Create new reference datasets using `bin/build_tiny_test_databases.py`. The defaults provided should suffice in most cases.
+2. Generate the new test index:
+    a. Create a fresh launch directory and copy the config file: `cp configs/index-for-run-test.config LAUNCH_DIR/nextflow.config`.
+    b. Edit the config file to specify a base directory (`params.base_dir`) and Batch job queue (`process.queue`).
+    c. Execute the workflow from the launch directory: `nextflow run PATH_TO_REPO_DIR`. (This usually takes about 10 minutes.)
+    d. Copy the tiny index from S3 to the repo: `aws s3 cp --recursive BASE_DIR/output test-data/tiny-index/output`, followed by `rm -r test-data/tiny-index/output/logging/trace*` to remove run-specific information we don't want in the repo.
+3. Generate test input data (simulated ONT & Illumina reads):
+    a. Set up an environment with appropriate versions of InSilicoSeq and NanoSim, e.g. with Conda: `conda env create -f test-data/tiny-index/reads/env.yml; conda activate GenerateTestData`
+    b. Run `bin/prepare_tiny_test_data.py` and commit the results to this repository.
+    c. Remember to return to your normal computing environment after you're done.
+4. Commit new test index and input data to the repo. This should not generate any new files, just replace existing ones.
+
 #### Running tests
 
 To run the tests locally, you need to make sure that you have a powerful enough compute instance (at least 4 cores, 14GB of RAM, and 32GB of storage). On AWS EC2, we recommend the `m5.2xlarge`. Note that you may want a more powerful instance when running tests in parallel (as described below).
 
 > [!NOTE]
-> Before running tests, to allow access to testing datasets/indexes on AWS, you will need to set up AWS credentials as described in [installation.md](installation.md), and then export them as described in the installation doc: 
+> Before running tests, to allow access to testing datasets/indexes on AWS, you will need to set up AWS credentials as described in [installation.md](installation.md), and then export them as described in the installation doc:
 >
 > ```
 > eval "$(aws configure export-credentials --format env)"
-> ``
+> ```
 
-To run specific tests, you can specify the tests by filename or by tag. Individual tests generally complete quickly (seconds to minutes):
-```
-nf-test test tests/main.test.nf # Runs all tests in the main.test.nf file
-nf-test test --tag run # Runs test(s) with the "run" tag; this is the end-to-end test of the RUN workflow on short-read data
-```
+In running tests, we don't recommend calling `nf-test test` directly, as this can easily run into issues with permissions and environment configuration. Instead, we recommend using `bin/run-nf-test.sh`, which wraps `nf-test` with the necessary `sudo` permissions and environment variables. For parallel execution, use the `--num-workers` flag. Due to the overhead associated with parallelization, we only recommend parallel execution for running large portions of the test suite.
 
-To run all tests in the `tests` directory, use the command `nf-test test tests`. 
-- Running this full suite of local tests takes hours; we recommend using the script `bin/run_parallel_test` to parallelize. 
-- Running the full test suite frequently hits API limits for Seqera container pulls; to resolve this, request a user token from Seqera as described in [troubleshooting.md](troubleshooting.md).
+```
+bin/run-nf-test.sh tests/main.test.nf # Runs all tests in the main.test.nf file
+bin/run-nf-test.sh --num-workers 8 tests # Runs all tests in parallel across 8 threads.
+bin/run-nf-test.sh --num-workers 8 tests --tag expect_failure # Run failure tests only across 8 threads
+```
 
 After tests finish, you should clean up by running `bin/clean-nf-test.sh`.
 
@@ -210,15 +229,12 @@ Test [7677da69] 'RUN workflow output should match snapshot'
 ```  
 - First, make sure the changes are expected/desired:
     - Look at the md5 checksums to determine which files have changes; make sure they are what you expect.
-    - Then, find the new output files and compare them to previous output files. Make sure the changes are expected based on your code changes.
-        - Previous output files are in:
-            - `test-data/gold-standard-results` (for short-read `RUN` test with the tag `run_output`)
-            - `test-data/gold-standard-results-downstream` (for short-read `DOWNSTREAM` test with the tag `downstream`) 
-            - `test-data/ont-ww-test-results` (for ONT `RUN` test with the tag `run_output_ont`)
+    - Then, find the new output files and compare them to previous output files in `test-data/results`. Make sure the changes are expected based on your code changes.
+        - Previous output files are in `test-data/results`.
         - New output files are in `.nf-test/tests/<hash>/output`. (`<hash>` is shown when the test runs; e.g., in the example error message above, the test hash begins with `7677da69`).
     - Once you are happy with the changes to the output:
         - Update output files in `test-data` by copying changed output files from the `.nf-test` directory to the appropriate location in `test-data`, uncompressing the files, and committing the changes.
-        - Update `nf-test` snapshots by running `nf-test test <path to test that failed> --update-snapshot`; this will update the appropriate `*.snapshot` file in `tests/workflows`. Commit the changed snapshot file.
+        - Update `nf-test` snapshots by running `bin/run-nf-test.sh <path to test that failed> --update-snapshot`; this will update the appropriate `*.snapshot` file in `tests/workflows`. Commit the changed snapshot file.
         - Flag in PR comments that the snapshot has changed, and explain why. (Without such a comment, it's easy for reviewers to miss the updated snapshot.)
 
 ### `pytest`
@@ -229,7 +245,11 @@ Unlike nf-test, `pytest` tests are very fast and cheap to run. Consequently, we 
 
 ### Automated testing
 
-We run a subset of tests automatically on each pull request using Github Actions, as specified by configuration files in `.github/workflows`. Currently, all `pytest` tests are run on each PR, along with select workflow-level nf-test tests. We also run [Trivy](https://trivy.dev/) on all containers used by the workflow to check for security vulnerabilities. 
+We run the full test suite automatically on each pull request using GitHub Actions with larger runners and parallelization, as specified by configuration files in `.github/workflows`. This includes all `pytest` tests and all `nf-test` tests (modules, subworkflows, and workflows). We also run [Trivy](https://trivy.dev/) on all containers used by the workflow to check for security vulnerabilities.
+
+Because the CI runs the complete test suite, **running tests locally before pushing is no longer required**. However, running relevant tests locally can still be useful for faster feedback during development, especially when iterating on a specific module or workflow.
+
+For comprehensive documentation of all CI workflows, see [ci.md](ci.md). 
 
 ## GitHub issues
 We use [GitHub issues](https://github.com/naobservatory/mgs-workflow/issues) to track any issues with the pipeline: bugs, cleanup tasks, and desired new features. 
@@ -278,21 +298,17 @@ Feel free to use AI tools (Cursor, GitHub Copilot, Claude Code, etc.) to generat
 > During a release, new feature PRs are not merged into `dev`. Please check with a maintainer if a release is in progress.
 
 1. **Write new tests** for the changes that you make if those tests don't already exist. At the very least, these tests should check that the new implementation runs to completion; tests that also verify the output on the test dataset are strongly encouraged. As discussed above, we recommend writing end-to-end tests in `nf-test` and unit tests in language-specific testing libraries like `pytest`.
-2. **Run all relevant tests locally** and make sure they pass. "Relevant" means: 1) Any tests of any process or workflow modified by the PR; 2) Any tests for any workflows that source any such process or workflow, and 3) Any tests that use any such process or workflow in setup.
-    - For **nf-test**: You may run all existing tests as described in the "Testing" section above, or identify relevant tests by recursively grepping for the process name in the `workflows`, `subworkflows`, and `tests` directories.
-    - For **pytest**: If you modify Python scripts, run `pytest` on the corresponding test files to ensure unit tests pass.
-    - **Note which tests were run in your PR description.**
-    - If you make any changes that affect the output of the pipeline, list/describe the changes that occurred in the pull request. 
-3. **Update the `CHANGELOG.md` file** with the changes that you are making, and update the `pipeline-version.txt` and `pyproject.toml` file with the new version number.
+    - If you make any changes that affect the output of the pipeline, list/describe the changes that occurred in the pull request.
+2. **Update the `CHANGELOG.md` file** with the changes that you are making, and update the `pipeline-version.txt` and `pyproject.toml` file with the new version number.
     - More information on how to update the `CHANGELOG.md` file can be found [here](./versioning.md). Note that, before merging to `main`, version numbers should have the `-dev` suffix. This suffix should be used to denote development versions in `CHANGELOG.md`, `pipeline-version.txt`, and `pyproject.toml`, and should only be removed when preparing to merge to `main`.
-4. **Update the expected-output-{run,downstream}.txt files** with any changes to the output of the RUN or DOWNSTREAM workflows.
-5. **Pass automated tests on GitHub Actions**. These run automatically when you open a pull request.
-6. **Write a meaningful description** of your changes in the PR description and give it a meaningful title. 
-    - In comments, feel free to flag any open questions or places where you need careful review. 
-7. **Request review** from a maintainer on your changes. Current maintainers are jeffkaufman, willbradshaw, and katherine-stansifer. 
+3. **Update the expected-output-{run,downstream}.txt files** with any changes to the output of the RUN or DOWNSTREAM workflows.
+4. **Pass automated tests on GitHub Actions**. These run automatically when you open a pull request.
+5. **Write a meaningful description** of your changes in the PR description and give it a meaningful title.
+    - In comments, feel free to flag any open questions or places where you need careful review.
+6. **Request review** from a maintainer on your changes. Current maintainers are jeffkaufman, willbradshaw, and katherine-stansifer.
     - Make sure to assign the PR to the desired reviewer so that they see your PR (put them in the "Assignees" section on GitHub as well as in the "Reviewers" section).
         - If the reviewer is not satisfied and requests changes, they should then change the "Assignee" to be the person who originally submitted the code. This may result in a few loops of "Assignee" being switched between the reviewer and the author.
-8. To merge, you must **have an approving review** on your final changes, and all conversations must be resolved. After merging, please delete your branch!
+7. To merge, you must **have an approving review** on your final changes, and all conversations must be resolved. After merging, please delete your branch!
 
 ### Squash merging
 
@@ -320,14 +336,29 @@ Try rebasing branch B onto `dev` first (`git rebase dev`). If rebasing doesn't w
 
 By default, all changes are made on individual branches, and merged into `dev`. Periodically, a collection of `dev` changes are merged to `main` as a new release. New releases are fairly frequent (historically, we have made a new release every 2-4 weeks).
 
-Only a pipeline maintainer/member of the Nucleic Acid Observatory should author a new release. The process for going through a new release can be found in NAO private documentation; however, the general outline can be found below.
+Only pipeline maintainers should author a new release. The process for going through a new release is as follows:
 
-To start a new release:
-- Stop approving new feature PRs into `dev`.
-- Create a release branch (e.g., `release/<maintainer first name or handle>/X.X.X.X`) for release-related changes (e.g., changelog updates, version bumps).
-- If any issues are found, fix them with new PRs that are squash merged into `dev`, and then pull these changes into your release branch.
-- Once the release is approved, squash merge the release branch onto `dev`.
-- Merge `dev` into `main` using a normal (non-squash) merge.
-- Tag the release.
-- Delete the release branch. 
+1. Stop approving new feature PRs into `dev`.
+2. Create a release branch `release/USER_HANDLE/X.Y.Z.W` (see [here](./versioning.md) for information on our versioning system). In this branch:
 
+    1. Review and consolidate additions to `CHANGELOG.md`; these often get somewhat disjointed across many small PRs to `dev`.
+    2. Update the version number in `CHANGELOG.md` and `pyproject.toml` to remove any `-dev` suffix and reflect the magnitude of changes (again, see [here](./versioning.md) for information on the versioning schema).
+    3. Check if the changes in the release necessitate a new index version. Most releases do not; the primary reason one would is if changes to processes or workflows would cause an incompatibility between the contents of the index and the expectations of the RUN or DOWNSTREAM workflows. If this is the case:
+
+        1. Check for new releases of reference databases and update `configs/index.config`[^refs].
+        2. Update `index-min-pipeline-version` and `pipeline-min-index-version` in the `[tool.mgs-workflow]` section of `pyproject.toml` to reflect any changes to compatibility restrictions.
+        3. Delete `s3://nao-testing/mgs-workflow-test/index-latest`, then run the `INDEX` workflow to generate a new index at that location. (This will update the index used by relevant Github Actions checks.)
+
+3. Open a PR to merge the release branch into `dev`, wait for CI tests to complete, and resolve any failing tests. Then:
+
+    1. Squash-merge the PR into `dev`, then open a new PR from `dev` into `main` entitled "Merge dev to main -- release X.Y.Z.W".
+    2. Quickly review the PR changes to ensure the changed files are consistent with the changes noted in `CHANGELOG.md` (no need to review file contents deeply at this stage).
+    3. Double check that documentation and tests have been updated to stay consistent with changes to the pipeline.
+    4. Wait for additional long-running pre-release checks to complete in Github Actions.
+    5. If any issues or test failures arise in the preceding steps, fix them with new bugfix PRs into `dev`, then rebase the release branch onto `dev`.
+
+4. Once all checks pass and the PR to `main` is approved, merge it **without squashing**. A Github Actions workflow will automatically create and tag a new release and reset other branches (`dev` & `ci-test`, plus `stable` if only the fourth version number has changed) to match `main`.
+
+    1. Non-point releases are NOT automatically merged to `stable`. To update `stable` with a non-point release, a repo admin must manually reset the branch.
+
+[^refs]: For reference genomes, check for updated releases for human, cow, pig, and mouse; do not update carp; update *E. coli* if there is a new release for the same strain. Check [SILVA](https://www.arb-silva.de/download/archive/) for rRNA databases and [here](https://benlangmead.github.io/aws-indexes/k2) for Kraken2 databases.
