@@ -34,6 +34,7 @@
     - Taxonomy: `bracken_reports_merged.tsv.gz` → `{sample}_bracken.tsv.gz`, `kraken_reports_merged.tsv.gz` → `{sample}_kraken.tsv.gz`
     - Removed `COUNT_TOTAL_READS` subworkflow; `COUNT_READS` module is now called directly from RUN workflow.
     - Viral hits: `virus_hits_final.tsv.gz` → `{sample}_virus_hits.tsv.gz`
+- Updated required Nextflow version to 25.10.4.
 
 # v3.0.1.9
 
