@@ -90,6 +90,8 @@ expected-outputs-run = [
     "logging/pyproject.toml",
     "logging/pyproject-index.toml",
     "logging/time.txt",
+    "results/{SAMPLE}_bracken.tsv.gz",
+    "results/{SAMPLE}_kraken.tsv.gz",
     "results/{SAMPLE}_qc_adapter_stats_cleaned.tsv.gz",
     "results/{SAMPLE}_qc_adapter_stats_raw.tsv.gz",
     "results/{SAMPLE}_qc_basic_stats_cleaned.tsv.gz",
@@ -101,8 +103,6 @@ expected-outputs-run = [
     "results/{SAMPLE}_qc_quality_sequence_stats_cleaned.tsv.gz",
     "results/{SAMPLE}_qc_quality_sequence_stats_raw.tsv.gz",
     "results/{SAMPLE}_read_counts.tsv",
-    "results/bracken_reports_merged.tsv.gz",
-    "results/kraken_reports_merged.tsv.gz",
     "results/virus_hits_final.tsv.gz",
 ]
 

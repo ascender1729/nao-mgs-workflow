@@ -1,8 +1,8 @@
 {
     "run_output_shortread": {
         "content": [
-            "bracken_reports_merged.tsv.gz:md5,7fbf9af7ae2074266d5f0be4f1b2a184",
-            "kraken_reports_merged.tsv.gz:md5,b92e96228ff584c883f74b6f6e855a60",
+            "tiny_test_bracken.tsv.gz:md5,7fbf9af7ae2074266d5f0be4f1b2a184",
+            "tiny_test_kraken.tsv.gz:md5,b92e96228ff584c883f74b6f6e855a60",
             "tiny_test_qc_adapter_stats_cleaned.tsv.gz:md5,d15e65d588573c8ccb2687414e37f905",
             "tiny_test_qc_adapter_stats_raw.tsv.gz:md5,d15e65d588573c8ccb2687414e37f905",
             "tiny_test_qc_basic_stats_cleaned.tsv.gz:md5,9d044c322169f16b5e7c261443ce43f4",
@@ -24,8 +24,8 @@
     },
     "run_output_ont": {
         "content": [
-            "bracken_reports_merged.tsv.gz:md5,7fbf9af7ae2074266d5f0be4f1b2a184",
-            "kraken_reports_merged.tsv.gz:md5,cce4f37145ef2a1d04ad478078b9c2ea",
+            "tiny_test_bracken.tsv.gz:md5,7fbf9af7ae2074266d5f0be4f1b2a184",
+            "tiny_test_kraken.tsv.gz:md5,cce4f37145ef2a1d04ad478078b9c2ea",
             "tiny_test_qc_adapter_stats_cleaned.tsv.gz:md5,d15e65d588573c8ccb2687414e37f905",
             "tiny_test_qc_adapter_stats_raw.tsv.gz:md5,d15e65d588573c8ccb2687414e37f905",
             "tiny_test_qc_basic_stats_cleaned.tsv.gz:md5,13737edbb681afaa937dac62a35cc485",
