@@ -34,6 +34,15 @@
     - Taxonomy: `bracken_reports_merged.tsv.gz` → `{sample}_bracken.tsv.gz`, `kraken_reports_merged.tsv.gz` → `{sample}_kraken.tsv.gz`
     - Removed `COUNT_TOTAL_READS` subworkflow; `COUNT_READS` module is now called directly from RUN workflow.
     - Viral hits: `virus_hits_final.tsv.gz` → `{sample}_virus_hits.tsv.gz`
+- Updated DOWNSTREAM to handle per-sample RUN outputs:
+    - Modified `loadDownstreamData` to return tuples connecting hits tables to group annotations.
+    - Modified `createEmptyGroupOutputs` to handle a comma-separated list of empty group IDs
+    - Dramatically simplified `prepareGroupTsvs` (now only needs to concatenate hits tables, never split them)
+    - Added empty-group handling to `validateViralAssignments` (now creates empty validation-hits files for groups with no hits)
+    - Deleted obsolete `validateGrouping` module
+    - DOWNSTREAM workflow updated to auto-discover per-sample files from `run_results_dir` and parse groups from `groups_tsv`.
+    - Deleted obsolete `validatePerSampleGrouping` module.
+    - Removed empty placeholder file creation for groups with no hits files in DOWNSTREAM (groups with no input data simply produce no output).
 - Updated required Nextflow version to 25.10.4.
 
 # v3.0.1.9

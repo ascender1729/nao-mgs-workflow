@@ -83,6 +83,7 @@ index-min-pipeline-version = "2.8.1.2"
 pipeline-min-index-version = "2.8.1.2"
 
 # Expected output files for each workflow (used by external validation tools)
+# Note: {SAMPLE} is a wildcard that matches sample names from the samplesheet
 expected-outputs-run = [
     "input/adapters.fasta",
     "input/params-index.json",

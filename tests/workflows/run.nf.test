@@ -39,7 +39,7 @@ nextflow_pipeline {
     name "Test workflow RUN"
     script "main.nf" // Running from main so we have access to published files
     tag "workflow"
-    
+
     test("Should handle empty input files") {
         config "tests/configs/run.config"
         tag "empty_input"
