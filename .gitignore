@@ -34,3 +34,25 @@ post-processing/obj/
 
 .DS_Store
 *.egg-info/*
+
+# Personal documents (confidential, never push)
+DEPLOYMENT_REPORT.md
+FINDINGS_AND_IMPACT.md
+BIOSECURITY_PERSONAL_ACTION_PLAN.md
+COLLABORATION_PROPOSAL.md
+CONTRIBUTION_PROPOSAL.md
+JEFF_KAUFMAN_OUTREACH.md
+ULRICH_MESSAGE.md
+NAO_PIPELINE_AUDIT_PROPOSAL.md
+research_project.tex
+NAO_Pipeline_Deployment_Audit_Report.pdf
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.pdf
+
+# Misc
+aura_errors.log
